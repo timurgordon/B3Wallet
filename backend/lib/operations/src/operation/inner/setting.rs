@@ -107,7 +107,7 @@ impl OperationTrait for UpgradeCanister {
             canister_id,
             wasm_module,
             arg: Vec::new(),
-            mode: CanisterInstallMode::Upgrade,
+            mode: CanisterInstallMode::Upgrade(None),
         };
 
         let _ = install_code(args).await;

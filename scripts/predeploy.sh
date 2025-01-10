@@ -10,6 +10,19 @@ red='\033[0;31m'
 blue='\033[0;34m'
 no_color='\033[0m'
 
+# Check for required tools
+if ! command -v candid-extractor >/dev/null 2>&1; then
+    printf "${red}Error: candid-extractor is not installed. Please install it to proceed.${no_color}\n"
+    exit 1
+fi
+if ! command -v ic-wasm >/dev/null 2>&1; then
+    printf "${yellow}Warning: ic-wasm is not installed. Some steps will be skipped.${no_color}\n"
+fi
+if ! command -v dfx >/dev/null 2>&1; then
+    printf "${red}Error: dfx is not installed. Please install it to proceed.${no_color}\n"
+    exit 1
+fi
+
 # Check if a specific package name is provided
 specified_package=${1:-}
 
@@ -29,12 +42,11 @@ for app_root in "$backend_dir"/*; do
     did_file="$app_root/$package.did"
     optimised_target_dir="./canisters/$package"
 
-
     if [ ! -f "$app_root/Cargo.toml" ]; then
         printf "${yellow}No Cargo.toml found in $app_root. Skipping $package.${no_color}\n"
         continue
     fi
-    
+
     printf "${green}Building $package in $app_root${no_color}\n"
     cargo build --manifest-path="$app_root/Cargo.toml" \
         --target wasm32-unknown-unknown \
@@ -42,42 +54,40 @@ for app_root in "$backend_dir"/*; do
         --package "$package"
     printf "Size of $package.wasm: $(ls -lh "$target_dir/$package.wasm" | awk '{print $5}')\n"
 
-    if command -v candid-extractor >/dev/null 2>&1; then
-        printf "${green}Generating Candid file for $package${no_color}\n"
-        candid-extractor "$target_dir/$package.wasm" 2>/dev/null > "$did_file"
-        printf "Size of $package.did: $(ls -lh "$did_file" | awk '{print $5}')\n"
-    else
-        printf "${yellow}candid-extractor not found. Skipping generating $package.did.${no_color}\n"
+    printf "${green}Generating Candid file for $package${no_color}\n"
+    if ! candid-extractor "$target_dir/$package.wasm" 2>/dev/null > "$did_file"; then
+        printf "${red}Failed to generate $package.did. Ensure candid-extractor works correctly.${no_color}\n"
+        continue
     fi
+    printf "Size of $package.did: $(ls -lh "$did_file" | awk '{print $5}')\n"
 
-    # Check if ic-wasm is installed before attempting to shrink the wasm file
-    # you can install ic-wasm via `cargo install ic-wasm` for smaller wasm files
     if command -v ic-wasm >/dev/null 2>&1; then
-        # create the optimised target dir
         mkdir -p "$optimised_target_dir"
-        # copy the candid file to the optimised target dir
         cp "$did_file" "$optimised_target_dir/$package.did"
 
-        # add candid file into wasm file as metadata
         printf "${green}Adding Candid file into $package.wasm${no_color}\n"
         ic-wasm "$target_dir/$package.wasm" -o "$optimised_target_dir/$package.wasm" metadata candid:service -f "$optimised_target_dir/$package.did" -v public
         printf "Size of $package.wasm with Candid metadata: $(ls -lh "$optimised_target_dir/$package.wasm" | awk '{print $5}')\n"
-        
-        # shrink wasm file
+
         printf "${green}Shrinking $package.wasm${no_color}\n"
         ic-wasm "$optimised_target_dir/$package.wasm" -o "$optimised_target_dir/$package.wasm" optimize O3
         printf "Size of shrunk $package.wasm: $(ls -lh "$optimised_target_dir/$package.wasm" | awk '{print $5}')\n"
-        
-        # Gunzip target
+
         printf "${green}Gunzipping $package.wasm${no_color}\n"
         gzip -c "$optimised_target_dir/$package.wasm" > "$optimised_target_dir/$package.wasm.gz"
         printf "Size of Gunzipped $package.wasm.gz: $(ls -lh "$optimised_target_dir/$package.wasm.gz" | awk '{print $5}')\n"
     else
         printf "${yellow}ic-wasm not found. Skipping shrinking $package.${no_color}\n"
     fi
-    # print the file directory for the package
+
+    if [ -f "$did_file" ]; then
+        printf "${green}Generating type declarations for $package${no_color}\n"
+        if ! dfx generate "$package"; then
+            printf "${red}Failed to generate type declarations for $package.${no_color}\n"
+        fi
+    else
+        printf "${red}Candid file $did_file does not exist. Skipping dfx generate.${no_color}\n"
+    fi
+
     printf "${blue}Files for $package are in $optimised_target_dir${no_color}\n"
-
-    dfx generate "$package"
-
 done

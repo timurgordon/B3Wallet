@@ -598,7 +598,7 @@ async fn upgrage_wallet() {
         canister_id,
         wasm_module,
         arg: Vec::new(),
-        mode: CanisterInstallMode::Upgrade,
+        mode: CanisterInstallMode::Upgrade(None),
     };
 
     install_code(args).await.unwrap();

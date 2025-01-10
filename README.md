@@ -104,7 +104,13 @@ Follow these instructions to set up and run the B3Wallet project on your local m
 
 All of these commands can also be run with npm by replacing `yarn` with `npm run` in each command.
 
-Please make sure to have the necessary software installed and configured properly on your local machine before following these steps, including Node.js, Yarn (or npm), and DFINITY's SDK, dfx.
+Please make sure to have the necessary software installed and configured properly on your local machine before following these steps, including:
+- Node.js, 
+- Yarn (or npm), 
+- DFINITY's SDK, dfx.
+- DFINITY's NNS dfx extension: `dfx extension install nns`
+- `candid-extractor` `cargo install candid-extractor`
+- `ic-wasm` `cargo install ic-wasm`
 
 1. **Start the dfx service**: Open a terminal and run the following command:
 
@@ -124,6 +130,7 @@ yarn dfx:start --enable-bitcoin
    dfx extension install nns
 
 ```bash
+dfx deps pull
 yarn dfx:install
 ```
 

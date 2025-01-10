@@ -38,7 +38,6 @@ type CanisterInfoResponse = record {
   recent_changes : vec CanisterChange;
   total_num_changes : nat64;
 };
-type CanisterInstallMode = variant { reinstall; upgrade; install };
 type CanisterStatusResponse = record {
   status : CanisterStatusType;
   memory_size : nat;
@@ -50,8 +49,9 @@ type CanisterStatusResponse = record {
   reserved_cycles : nat;
 };
 type CanisterStatusType = variant { stopped; stopping; running };
+type CodeDeploymentMode = variant { reinstall; upgrade; install };
 type CodeDeploymentRecord = record {
-  mode : CanisterInstallMode;
+  mode : CodeDeploymentMode;
   module_hash : blob;
 };
 type CreateAppArgs = record {
